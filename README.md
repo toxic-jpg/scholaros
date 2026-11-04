@@ -115,4 +115,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
-Built for BSIT students at the University of Rizal System.
+Built for BSIT students at Pamantasan ng Lungsod ng Pasig.
