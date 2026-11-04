@@ -1,0 +1,13 @@
+"""Configuration constants for ScholarOS."""
+import os
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / "data"
+DB_PATH = Path(os.environ.get("SCHOLAROS_DB", str(DATA_DIR / "scholaros.db")))
+EXPORT_DIR = Path(os.environ.get("SCHOLAROS_EXPORT_DIR", str(DATA_DIR / "exports")))
+MAX_STUDY_BLOCKS_PER_DAY = 6
+STUDY_BLOCK_DEFAULT_MINUTES = 60
+RISK_THRESHOLD_HIGH = 70
+RISK_THRESHOLD_MEDIUM = 50
+RISK_TREND_THRESHOLD = 5

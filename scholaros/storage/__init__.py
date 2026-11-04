@@ -1,0 +1,1 @@
+"""Storage layer: SQLite via stdlib sqlite3, repository pattern."""
