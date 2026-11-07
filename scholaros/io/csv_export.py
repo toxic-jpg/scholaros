@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import csv
+from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import Iterable, Sequence
 
 from scholaros.config import EXPORT_DIR
 from scholaros.errors import ExportError

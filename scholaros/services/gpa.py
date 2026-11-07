@@ -2,13 +2,17 @@
 from __future__ import annotations
 
 import logging
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Iterable
+from collections.abc import Iterable
+from decimal import ROUND_HALF_UP, Decimal
 
 from scholaros.domain import Course, Grade
 from scholaros.errors import GPACalculationError
 from scholaros.storage.migrations import get_connection
-from scholaros.storage.repositories import AssignmentRepository, CourseRepository, GradeRepository
+from scholaros.storage.repositories import (
+    AssignmentRepository,
+    CourseRepository,
+    GradeRepository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +58,8 @@ def compute_gpa(grades: Iterable[Grade], courses: Iterable[Course], assignments_
         assignments_by_id: Optional mapping from assignment_id -> course_id for correct course lookup
     """
     course_map = {c.id: c for c in courses}
-    total_points = Decimal("0")
-    total_credits = Decimal("0")
+    total_points = Decimal(0)
+    total_credits = Decimal(0)
     
     for g in grades:
         if not assignments_by_id or g.assignment_id not in assignments_by_id:

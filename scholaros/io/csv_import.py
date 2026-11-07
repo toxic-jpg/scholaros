@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import csv
-from pathlib import Path
 
 from scholaros.domain import Assignment, Course, Grade, StudentProfile, Term
 from scholaros.errors import ImportParseError

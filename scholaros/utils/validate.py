@@ -1,13 +1,12 @@
 """Input validation helpers."""
 from __future__ import annotations
 
-import os
 import re
 import tempfile
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from scholaros.errors import ValidationError
 
@@ -55,7 +54,7 @@ def validate_course_code(value: str) -> str:
     return value.upper()
 
 
-def parse_date(value: Any) -> Optional[date]:
+def parse_date(value: Any) -> date | None:
     """Parse a date. Imports must use ISO format (YYYY-MM-DD)."""
     if value is None or value == "":
         return None
@@ -82,7 +81,7 @@ def parse_decimal(value: Any, *, field_name: str = "value") -> Decimal:
         raise ValidationError(f"{field_name} must be a number, got {value!r}")
 
 
-def parse_int(value: Any, *, field_name: str = "value", minimum: Optional[int] = None) -> int:
+def parse_int(value: Any, *, field_name: str = "value", minimum: int | None = None) -> int:
     if isinstance(value, bool):
         raise ValidationError(f"{field_name} must be an integer")
     if isinstance(value, int):

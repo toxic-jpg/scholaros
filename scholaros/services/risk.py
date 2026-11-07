@@ -1,11 +1,15 @@
 """Course-risk predictor (rule-based + trend)."""
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Iterable
+from decimal import ROUND_HALF_UP, Decimal
 
-from scholaros.config import RISK_THRESHOLD_HIGH, RISK_THRESHOLD_MEDIUM, RISK_TREND_THRESHOLD
+from scholaros.config import (
+    RISK_THRESHOLD_HIGH,
+    RISK_THRESHOLD_MEDIUM,
+    RISK_TREND_THRESHOLD,
+)
 from scholaros.domain import Course, Grade
 from scholaros.storage.migrations import get_connection
 from scholaros.storage.repositories import CourseRepository, GradeRepository
@@ -25,7 +29,7 @@ def _average(grades: Iterable[Grade]) -> Decimal:
     gs = list(grades)
     if not gs:
         return Decimal("0.00")
-    total = sum((g.percentage for g in gs), Decimal("0"))
+    total = sum((g.percentage for g in gs), Decimal(0))
     return (total / len(gs)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 

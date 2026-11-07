@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime, time
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Optional
 
 
@@ -38,7 +38,7 @@ class Grade:
     score: Decimal
     max_score: Decimal
     weight: Decimal = Decimal("1.0")
-    date: Optional[date] = None
+    date: date | None = None
 
     @property
     def percentage(self) -> Decimal:
@@ -57,7 +57,7 @@ class Assignment:
     name: str
     max_score: Decimal
     weight: Decimal = Decimal("1.0")
-    due_date: Optional[date] = None
+    due_date: date | None = None
 
 
 @dataclass

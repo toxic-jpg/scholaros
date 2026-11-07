@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date as _date
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, model_validator
 
@@ -10,7 +11,8 @@ from scholaros.services.risk import predict_risk
 from scholaros.services.scheduler import generate_schedule
 from scholaros.storage.migrations import get_connection
 from scholaros.storage.repositories import (
-    CourseRepository, GradeRepository,
+    CourseRepository,
+    GradeRepository,
 )
 
 router = APIRouter()
@@ -38,7 +40,7 @@ class ScheduleIn(BaseModel):
     end: _date
 
     @model_validator(mode="after")
-    def _check_range(self) -> "ScheduleIn":
+    def _check_range(self) -> ScheduleIn:
         if self.end < self.start:
             raise ValueError("end must be on or after start")
         span = (self.end - self.start).days
@@ -68,7 +70,11 @@ def list_courses() -> list[CourseOut]:
 def get_gpa(student_id: str):
     conn = get_connection()
     try:
-        from scholaros.storage.repositories import GradeRepository, CourseRepository, AssignmentRepository
+        from scholaros.storage.repositories import (
+            AssignmentRepository,
+            CourseRepository,
+            GradeRepository,
+        )
         g_repo = GradeRepository(conn)
         c_repo = CourseRepository(conn)
         a_repo = AssignmentRepository(conn)

@@ -5,16 +5,25 @@ import argparse
 import sys
 from datetime import date
 
-from scholaros.config import BASE_DIR
 from scholaros.io.csv_export import export_rows
-from scholaros.io.csv_import import import_assignments, import_courses, import_grades, import_students, import_terms
+from scholaros.io.csv_import import (
+    import_assignments,
+    import_courses,
+    import_grades,
+    import_students,
+    import_terms,
+)
 from scholaros.services.gpa import compute_gpa
 from scholaros.services.risk import predict_risk
 from scholaros.services.scheduler import generate_schedule
 from scholaros.storage.migrations import migrate
 from scholaros.storage.repositories import (
-    AssignmentRepository, CourseRepository, GradeRepository,
-    StudentRepository, TermRepository, get_connection,
+    AssignmentRepository,
+    CourseRepository,
+    GradeRepository,
+    StudentRepository,
+    TermRepository,
+    get_connection,
 )
 from scholaros.utils.logging import setup_logging
 
@@ -134,7 +143,7 @@ def main(argv: list[str] | None = None) -> int:
 
     exp = sub.add_parser("export", help="Export data")
     exp.add_argument("--type", choices=["students", "courses", "grades"], required=True)
-    exp.add_argument("--format", default="csv", choices=["csv"])
+    # --format reserved for future non-CSV exporters; CSV is the only supported format
     exp.add_argument("--output", type=str)
 
     sub.add_parser("gpa", help="Compute GPA for a student").add_argument(

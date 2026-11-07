@@ -1,10 +1,10 @@
 """Study-block auto-scheduler."""
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import date, time, timedelta
-from typing import Iterable
 
-from scholaros.config import STUDY_BLOCK_DEFAULT_MINUTES, MAX_STUDY_BLOCKS_PER_DAY
+from scholaros.config import MAX_STUDY_BLOCKS_PER_DAY, STUDY_BLOCK_DEFAULT_MINUTES
 from scholaros.domain import Course, Grade, StudyBlock
 from scholaros.services.risk import predict_risk
 from scholaros.storage.migrations import get_connection

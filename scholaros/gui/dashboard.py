@@ -12,9 +12,7 @@ from scholaros.services.gpa import compute_student_gpa
 from scholaros.services.risk import get_course_risk
 from scholaros.services.scheduler import generate_study_schedule
 from scholaros.storage.migrations import migrate
-from scholaros.storage.repositories import (
-    CourseRepository, StudentRepository, get_connection,
-)
+from scholaros.storage.repositories import CourseRepository, StudentRepository, get_connection
 
 
 class DashboardApp:
