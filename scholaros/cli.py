@@ -1,9 +1,10 @@
-"""CLI: argparse for import/export/schedule/risk."""
+"""CLI: argparse for import/export/schedule/risk/gpa/report/backup."""
 from __future__ import annotations
 
 import argparse
 import sys
 from datetime import date
+from decimal import Decimal
 
 from scholaros.io.csv_export import export_rows
 from scholaros.io.csv_import import (
@@ -13,7 +14,10 @@ from scholaros.io.csv_import import (
     import_students,
     import_terms,
 )
-from scholaros.services.gpa import compute_gpa
+from scholaros.services.backup import backup_db, restore_db
+from scholaros.services.deadlines import list_upcoming
+from scholaros.services.gpa import compute_gpa, compute_student_gpa, target_gpa, what_if_grade
+from scholaros.services.report import generate_report
 from scholaros.services.risk import predict_risk
 from scholaros.services.scheduler import generate_schedule
 from scholaros.storage.migrations import migrate
@@ -83,18 +87,56 @@ def cmd_export(args: argparse.Namespace) -> None:
 
 
 def cmd_gpa(args: argparse.Namespace) -> None:
-    conn = get_connection()
-    try:
-        g_repo = GradeRepository(conn)
-        c_repo = CourseRepository(conn)
-        a_repo = AssignmentRepository(conn)
-        gs = g_repo.list_by_student(args.student_id)
-        courses = c_repo.list_all()
-        assignments_by_id = {a.id: a.course_id for a in a_repo.list_all()}
-        gpa = compute_gpa(gs, courses, assignments_by_id)
-        print(f"GPA: {gpa}")
-    finally:
-        conn.close()
+    result = compute_student_gpa(args.student_id, term_id=getattr(args, "term", None))
+    print(f"GPA: {result['gpa']} | Credits: {result['total_credits']}")
+
+
+def cmd_whatif(args: argparse.Namespace) -> None:
+    result = what_if_grade(args.course_id, args.student_id, args.score, args.max_score)
+    print(f"Course: {result['course_name']}")
+    print(f"  Current avg: {result['current_avg']} → Predicted: {result['predicted_avg']}")
+    print(f"  Risk: {result['current_risk']} → {result['predicted_risk']} ({result['risk_change']})")
+    print(f"  GPA: {result['current_gpa']} → {result['predicted_gpa']} (delta: {result['gpa_delta']})")
+
+
+def cmd_deadlines(args: argparse.Namespace) -> None:
+    items = list_upcoming(args.student_id, days=args.days)
+    if not items:
+        print("No upcoming deadlines.")
+        return
+    for d in items:
+        print(f"  {d.due_date} | {d.course_name} | {d.assignment_name} | {d.days_left}d left")
+
+
+def cmd_target(args: argparse.Namespace) -> None:
+    result = target_gpa(args.student_id, getattr(args, "term", None), args.gpa)
+    print(f"Current GPA: {result['current_gpa']}")
+    print(f"Desired GPA: {result['desired_gpa']}")
+    if result["required_avg"] is not None:
+        print(f"Required average on remaining work: {result['required_avg']}%")
+    else:
+        print("No enrolled courses found.")
+    print(f"Feasible: {'yes' if result['feasible'] else 'no'}")
+
+
+def cmd_report(args: argparse.Namespace) -> None:
+    md = generate_report(args.student_id, term_id=getattr(args, "term", None))
+    if args.output:
+        from pathlib import Path
+        Path(args.output).write_text(md, encoding="utf-8")
+        print(f"Report written to {args.output}")
+    else:
+        print(md)
+
+
+def cmd_backup(args: argparse.Namespace) -> None:
+    out = backup_db(args.dest)
+    print(f"Backup created: {out}")
+
+
+def cmd_restore(args: argparse.Namespace) -> None:
+    out = restore_db(args.path)
+    print(f"Restored from: {out}")
 
 
 def cmd_risk(args: argparse.Namespace) -> None:
@@ -146,13 +188,42 @@ def main(argv: list[str] | None = None) -> int:
     # --format reserved for future non-CSV exporters; CSV is the only supported format
     exp.add_argument("--output", type=str)
 
-    sub.add_parser("gpa", help="Compute GPA for a student").add_argument(
-        "--student-id", required=True)
+    gpa_p = sub.add_parser("gpa", help="Compute GPA for a student")
+    gpa_p.add_argument("--student-id", required=True)
+    gpa_p.add_argument("--term", type=str, default=None)
+
     sub.add_parser("risk", help="Predict risk for a course").add_argument(
         "--course-id", required=True)
+
     sched = sub.add_parser("schedule", help="Generate study schedule")
     sched.add_argument("--start", required=True)
     sched.add_argument("--end", required=True)
+
+    wi = sub.add_parser("what-if", help="Predict the effect of a hypothetical grade")
+    wi.add_argument("--course-id", required=True)
+    wi.add_argument("--student-id", required=True)
+    wi.add_argument("--score", type=Decimal, required=True)
+    wi.add_argument("--max-score", type=Decimal, default=Decimal("100"))
+
+    dl = sub.add_parser("deadlines", help="List upcoming assignment deadlines")
+    dl.add_argument("--student-id", required=True)
+    dl.add_argument("--days", type=int, default=7)
+
+    tg = sub.add_parser("target", help="Compute required average to hit a target GPA")
+    tg.add_argument("--student-id", required=True)
+    tg.add_argument("--term", type=str, default=None)
+    tg.add_argument("--gpa", type=Decimal, required=True)
+
+    rp = sub.add_parser("report", help="Generate a Markdown academic report")
+    rp.add_argument("--student-id", required=True)
+    rp.add_argument("--term", type=str, default=None)
+    rp.add_argument("--output", type=str, default=None)
+
+    bk = sub.add_parser("backup", help="Back up the database")
+    bk.add_argument("--dest", type=str, default=None)
+
+    rt = sub.add_parser("restore", help="Restore the database from a backup")
+    rt.add_argument("--path", required=True)
 
     args = parser.parse_args(argv)
     if args.cmd == "import":
@@ -165,6 +236,18 @@ def main(argv: list[str] | None = None) -> int:
         cmd_risk(args)
     elif args.cmd == "schedule":
         cmd_schedule(args)
+    elif args.cmd == "what-if":
+        cmd_whatif(args)
+    elif args.cmd == "deadlines":
+        cmd_deadlines(args)
+    elif args.cmd == "target":
+        cmd_target(args)
+    elif args.cmd == "report":
+        cmd_report(args)
+    elif args.cmd == "backup":
+        cmd_backup(args)
+    elif args.cmd == "restore":
+        cmd_restore(args)
     return 0
 
 

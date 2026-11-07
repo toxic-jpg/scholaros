@@ -4,7 +4,11 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import date, time, timedelta
 
-from scholaros.config import MAX_STUDY_BLOCKS_PER_DAY, STUDY_BLOCK_DEFAULT_MINUTES
+from scholaros.config import (
+    MAX_STUDY_BLOCKS_PER_DAY,
+    STUDY_BLOCK_DEFAULT_MINUTES,
+    STUDY_BLOCK_STAGGER_MINUTES,
+)
 from scholaros.domain import Course, Grade, StudyBlock
 from scholaros.services.risk import predict_risk
 from scholaros.storage.migrations import get_connection
@@ -19,10 +23,14 @@ def generate_schedule(
     *,
     blocks_per_day: int = MAX_STUDY_BLOCKS_PER_DAY,
     default_minutes: int = STUDY_BLOCK_DEFAULT_MINUTES,
+    busy_dates: set[date] | None = None,
 ) -> list[StudyBlock]:
     blocks: list[StudyBlock] = []
     current = start
     while current <= end:
+        if busy_dates and current in busy_dates:
+            current += timedelta(days=1)
+            continue
         day_blocks = 0
         for course in courses:
             if day_blocks >= blocks_per_day:
@@ -32,11 +40,16 @@ def generate_schedule(
             priority = 3 if risk.risk_level == "high" else (2 if risk.risk_level == "medium" else 1)
             topic = (f"Review {course.code}" if risk.risk_level != "low"
                      else f"General review {course.code}")
-            start_time = time(18, 0)
-            minutes = min(default_minutes, 600)  # clamp to 10h max to avoid overflow
-            end_hour = 18 + minutes // 60
-            end_min = minutes % 60
-            end_time = time(min(end_hour, 23), end_min)
+            # Stagger start times so blocks don't all pile at 18:00
+            offset_min = day_blocks * STUDY_BLOCK_STAGGER_MINUTES
+            start_hour = 18 + offset_min // 60
+            start_min = offset_min % 60
+            start_time = time(min(start_hour, 23), start_min)
+            minutes = min(default_minutes, 600)
+            end_total = (start_hour * 60 + start_min + minutes)
+            end_hour = min(end_total // 60, 23)
+            end_min = end_total % 60
+            end_time = time(end_hour, end_min)
             blocks.append(StudyBlock(
                 course_id=course.id, course_name=course.name,
                 date=current, start=start_time, end=end_time,

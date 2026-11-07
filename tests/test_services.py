@@ -79,3 +79,21 @@ class TestScheduler:
         blocks = generate_schedule(courses, {"c1": []}, date(2026,1,1), date(2026,1,1), default_minutes=999)
         assert len(blocks) == 1
         assert blocks[0].end.hour == 23
+
+
+class TestComputeStudentGpa:
+    @pytest.fixture(autouse=True)
+    def _init_schema(self):
+        from scholaros.storage.migrations import migrate
+        migrate()
+
+    def test_no_grades(self):
+        from scholaros.services.gpa import compute_student_gpa
+        result = compute_student_gpa("nonexistent")
+        assert result["gpa"] == "0.00"
+
+    def test_term_filtering(self):
+        """term_id kwarg filters courses correctly (no error)."""
+        from scholaros.services.gpa import compute_student_gpa
+        result = compute_student_gpa("s1", term_id="t1")
+        assert "gpa" in result

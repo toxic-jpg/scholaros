@@ -2,11 +2,15 @@
 from __future__ import annotations
 
 from datetime import date as _date
+from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, model_validator
 
-from scholaros.services.gpa import compute_gpa
+from scholaros.services.backup import backup_db, restore_db
+from scholaros.services.deadlines import list_upcoming
+from scholaros.services.gpa import compute_gpa, compute_student_gpa, target_gpa, what_if_grade
+from scholaros.services.report import generate_report
 from scholaros.services.risk import predict_risk
 from scholaros.services.scheduler import generate_schedule
 from scholaros.storage.migrations import get_connection
@@ -129,3 +133,71 @@ def create_schedule(payload: ScheduleIn):
         ]}
     finally:
         conn.close()
+
+
+class WhatIfIn(BaseModel):
+    course_id: str
+    student_id: str
+    score: Decimal
+    max_score: Decimal = Decimal("100")
+
+
+class TargetIn(BaseModel):
+    student_id: str
+    term_id: str | None = None
+    desired_gpa: Decimal
+
+
+@router.get("/gpa/{student_id}/term/{term_id}")
+def get_gpa_term(student_id: str, term_id: str):
+    return compute_student_gpa(student_id, term_id=term_id)
+
+
+@router.post("/what-if")
+def what_if(payload: WhatIfIn):
+    return what_if_grade(payload.course_id, payload.student_id, payload.score, payload.max_score)
+
+
+@router.get("/deadlines/{student_id}")
+def deadlines(student_id: str, days: int = 7):
+    items = list_upcoming(student_id, days=days)
+    return {
+        "deadlines": [
+            {
+                "assignment_id": d.assignment_id,
+                "course_id": d.course_id,
+                "course_name": d.course_name,
+                "assignment_name": d.assignment_name,
+                "due_date": d.due_date.isoformat(),
+                "days_left": d.days_left,
+            }
+            for d in items
+        ]
+    }
+
+
+@router.post("/target")
+def target(payload: TargetIn):
+    return target_gpa(payload.student_id, payload.term_id, payload.desired_gpa)
+
+
+@router.get("/report/{student_id}")
+def report(student_id: str, term: str | None = None, output: str | None = None):
+    md = generate_report(student_id, term_id=term)
+    if output:
+        from pathlib import Path
+        Path(output).write_text(md, encoding="utf-8")
+        return {"path": output}
+    return {"markdown": md}
+
+
+@router.post("/backup")
+def backup(dest: str | None = None):
+    out = backup_db(dest)
+    return {"backup": str(out)}
+
+
+@router.post("/restore")
+def restore(path: str):
+    out = restore_db(path)
+    return {"restored": str(out)}
