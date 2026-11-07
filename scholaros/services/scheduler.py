@@ -42,14 +42,18 @@ def generate_schedule(
                      else f"General review {course.code}")
             # Stagger start times so blocks don't all pile at 18:00
             offset_min = day_blocks * STUDY_BLOCK_STAGGER_MINUTES
-            start_hour = 18 + offset_min // 60
+            start_hour = min(18 + offset_min // 60, 23)
             start_min = offset_min % 60
-            start_time = time(min(start_hour, 23), start_min)
+            start_time = time(start_hour, start_min)
             minutes = min(default_minutes, 600)
             end_total = (start_hour * 60 + start_min + minutes)
             end_hour = min(end_total // 60, 23)
             end_min = end_total % 60
             end_time = time(end_hour, end_min)
+            # Clamp: if end falls on or before start (late-day overflow past
+            # midnight), cap at 23:59 so StudyBlock's end > start invariant holds.
+            if end_time <= start_time:
+                end_time = time(23, 59)
             blocks.append(StudyBlock(
                 course_id=course.id, course_name=course.name,
                 date=current, start=start_time, end=end_time,

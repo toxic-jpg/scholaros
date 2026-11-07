@@ -80,6 +80,15 @@ class TestScheduler:
         assert len(blocks) == 1
         assert blocks[0].end.hour == 23
 
+    def test_scheduler_midnight_overflow(self):
+        # Many high-capacity blocks could push past midnight; end must stay >= start
+        courses = [Course(id=f"c{i}", code=f"C{i:02d}", name=f"C{i}") for i in range(10)]
+        grades_by_course = {c.id: [] for c in courses}
+        blocks = generate_schedule(courses, grades_by_course, date(2026,1,1), date(2026,1,1))
+        # All blocks must satisfy end > start (StudyBlock.__post_init__ invariant)
+        for b in blocks:
+            assert b.end > b.start, f"block {b.course_id}: end={b.end} <= start={b.start}"
+
 
 class TestComputeStudentGpa:
     @pytest.fixture(autouse=True)
